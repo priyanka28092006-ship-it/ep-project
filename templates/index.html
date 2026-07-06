@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morphic Grid Security</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Arial, sans-serif;
+    background:#0b0f17;
+    color:white;
+    max-width:900px;
+    margin:auto;
+    padding:24px;
+}
+
+h1{
+    font-size:34px;
+    margin-bottom:8px;
+}
+
+.sub{
+    color:#9aa4b2;
+    margin-bottom:20px;
+}
+
+.card{
+    background:#121826;
+    padding:22px;
+    border-radius:16px;
+    margin-bottom:18px;
+}
+
+label{
+    display:block;
+    margin-bottom:8px;
+    font-weight:bold;
+}
+
+input{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    margin-bottom:14px;
+    font-size:16px;
+}
+
+button{
+    padding:12px 18px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:bold;
+    margin-right:8px;
+    margin-bottom:8px;
+    background:#00d9ff;
+    color:black;
+}
+
+button:hover{
+    opacity:0.9;
+}
+
+#video{
+    width:100%;
+    max-height:420px;
+    border-radius:14px;
+    background:black;
+}
+
+#result{
+    white-space:pre-wrap;
+    font-size:15px;
+    line-height:1.5;
+}
+
+.ok{
+    color:#39d98a;
+}
+
+.bad{
+    color:#ff5d73;
+}
+
+.mode{
+    margin-top:10px;
+    color:#9aa4b2;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Morphic Grid</h1>
+<p class="sub">Ferrofluid Security Authentication System</p>
+
+<div class="card">
+<label>Location Name</label>
+<input id="location" placeholder="Main Gate / Lab 1">
+
+<button onclick="setMode('register')">Register</button>
+<button onclick="setMode('authenticate')">Authenticate</button>
+<button onclick="startCamera()">Start Camera</button>
+
+<p class="mode" id="modeText">Mode: none</p>
+</div>
+
+<div class="card">
+<video id="video" autoplay playsinline muted></video>
+<br><br>
+<button onclick="runAction()">Capture & Submit</button>
+</div>
+
+<div class="card">
+<h3>Result</h3>
+<pre id="result">Waiting...</pre>
+</div>
+
+<script>
+let mode = "";
+let stream = null;
+
+function show(msg){
+    document.getElementById("result").textContent = msg;
+}
+
+function setMode(m){
+    mode = m;
+    document.getElementById("modeText").textContent = "Mode: " + m;
+}
+
+async function startCamera(){
+
+    try{
+        stream = await navigator.mediaDevices.getUserMedia({
+            video:true,
+            audio:false
+        });
+
+        document.getElementById("video").srcObject = stream;
+
+        show("Camera started successfully.");
+
+    }catch(error){
+        show("Camera permission denied or not found.");
+    }
+}
+
+function stopCamera(){
+    if(stream){
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+}
+
+async function runAction(){
+
+    const location = document.getElementById("location").value.trim();
+
+    if(location === ""){
+        show("Please enter location.");
+        return;
+    }
+
+    if(mode === ""){
+        show("Please select mode.");
+        return;
+    }
+
+    // stop browser camera so backend can use webcam
+    stopCamera();
+
+    const fd = new FormData();
+    fd.append("location", location);
+
+    const url = mode === "register"
+        ? "/register"
+        : "/authenticate";
+
+    show("Processing request...");
+
+    try{
+
+        const response = await fetch(url,{
+            method:"POST",
+            body:fd
+        });
+
+        if(!response.ok){
+            throw new Error("Server Error");
+        }
+
+        const data = await response.json();
+
+        show(JSON.stringify(data, null, 2));
+
+    }catch(error){
+
+        show("Request failed. Check Flask terminal.");
+
+    }
+}
+</script>
+
+</body>
+</html>
